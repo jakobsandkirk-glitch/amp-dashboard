@@ -1,0 +1,15 @@
+{
+  "name": "amp-dashboard",
+  "version": "1.0.0",
+  "description": "Arbejdsmarkedspolitisk dashboard med live data fra Folketinget og Danmarks Statistik",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
