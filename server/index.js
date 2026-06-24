@@ -840,6 +840,9 @@ app.get("/api/partier", async (req, res) => {
 // --- Statiske filer (frontend) ---------------------------------------
 app.use(express.static(path.join(__dirname, "..", "public")));
 
-app.listen(PORT, () => {
-  console.log(`AMP-dashboard kører på http://localhost:${PORT}`);
+// Bind eksplicit til 0.0.0.0, så hosting-platforme (Render m.fl.) kan nå
+// serveren udefra. Nodes standard binder ellers til IPv6 (::), hvilket kan
+// give intermitterende "no-server"/routing-fejl på nogle platforme.
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`AMP-dashboard kører på port ${PORT}`);
 });
