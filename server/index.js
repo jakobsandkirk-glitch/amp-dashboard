@@ -686,6 +686,9 @@ const RSS_FEEDS = [
   { medie: "Fagbladet 3F", url: "https://fagbladet3f.dk/rss" },
   { medie: "DR Penge", url: "https://www.dr.dk/nyheder/service/feeds/penge" },
   { medie: "DR Politik", url: "https://www.dr.dk/nyheder/service/feeds/politik" },
+  // Fagbevægelsens egen kilde + A4 Medier (arbejdsmarkeds-journalistik).
+  { medie: "FH", url: "https://fho.dk/feed/" },
+  { medie: "Avisen.dk (A4)", url: "https://www.avisen.dk/rss.aspx" },
 ];
 
 // Hent rå tekst (RSS er XML, ikke JSON).
@@ -749,33 +752,39 @@ app.get("/api/debat", async (req, res) => {
       return res.json({ ok: true, kilde: "NewsAPI", emne: q, artikler: data });
     }
 
-    const result = await cached(`rss:${q}`, 30, async () => {
-      // Hent alle feeds (fejler én, springer vi den bare over).
+    // De rå feeds hentes og caches ÉN gang (delt på tværs af ALLE emner), så
+    // vi ikke genhenter 7 eksterne feeds for hvert emne — det var skrøbeligt
+    // og langsomt. Emnet filtreres bagefter i hukommelsen.
+    const hentPool = async () => {
       const settled = await Promise.allSettled(
         RSS_FEEDS.map(async (f) => parseRSS(await getText(f.url), f.medie))
       );
       const alle = settled.flatMap((s) => (s.status === "fulfilled" ? s.value : []));
-      // Dedupliker på link, nyeste først.
       const set = new Map();
       for (const a of alle) if (a.link && !set.has(a.link)) set.set(a.link, a);
-      const unik = [...set.values()].sort(
-        (a, b) => new Date(b.tid) - new Date(a.tid)
-      );
-      // Filtrér på emnet (i titel eller uddrag). Falder tilbage til de
-      // nyeste arbejdsmarkeds-artikler hvis emnet ikke nævnes.
-      const term = q.toLowerCase();
-      const match = unik.filter(
-        (a) =>
-          a.titel.toLowerCase().includes(term) ||
-          a.uddrag.toLowerCase().includes(term)
-      );
-      const traf = match.length > 0;
-      return { artikler: (traf ? match : unik).slice(0, 6), traf };
-    });
+      return [...set.values()].sort((a, b) => new Date(b.tid) - new Date(a.tid));
+    };
+    let pool = await cached("rss:pool", 20, hentPool);
+    // Tom pulje = alle feeds timede ud (typisk kold start) → prøv igen frem
+    // for at cache en tom liste i 20 min.
+    if (!pool.length) {
+      cache.delete("rss:pool");
+      pool = await cached("rss:pool", 20, hentPool);
+    }
+    // Filtrér på emnet (i titel eller uddrag). Falder tilbage til de nyeste
+    // arbejdsmarkeds-artikler hvis emnet ikke nævnes.
+    const term = q.toLowerCase();
+    const match = pool.filter(
+      (a) =>
+        a.titel.toLowerCase().includes(term) ||
+        a.uddrag.toLowerCase().includes(term)
+    );
+    const traf = match.length > 0;
+    const result = { artikler: (traf ? match : pool).slice(0, 6), traf };
 
     res.json({
       ok: true,
-      kilde: "Altinget · Fagbladet 3F · DR (RSS)",
+      kilde: "Altinget · Fagbladet 3F · DR · FH · Avisen.dk/A4 (RSS)",
       kildeLink: "https://www.altinget.dk/arbejdsmarked",
       emne: q,
       note: result.traf
