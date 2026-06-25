@@ -47,6 +47,25 @@ async function getJSON(url, opts = {}) {
 // -----------------------------------------------------------
 const ODA = "https://oda.ft.dk/api";
 
+// Direkte link til en sag på ft.dk: /samling/<samling>/<segment>/<prefix><nr>/index.htm.
+// Segmentet afhænger af sagstypen, som vi aflæser af nummer-præfikset (L/B/S/F …).
+// Kun de sikre typer får et direkte link; resten falder tilbage til en søgning,
+// så vi aldrig sender brugeren til et dødt link.
+const FT_SEGMENT = {
+  L: "lovforslag",
+  B: "beslutningsforslag",
+  S: "spoergsmaal", // § 20-spørgsmål
+  F: "forespoergsel",
+};
+function ftSagLink(s) {
+  const samling = s.Periode?.kode;
+  const seg = FT_SEGMENT[s.nummerprefix];
+  if (samling && seg && s.nummerprefix && s.nummernumerisk != null) {
+    return `https://www.ft.dk/samling/${samling}/${seg}/${s.nummerprefix}${s.nummernumerisk}/index.htm`;
+  }
+  return `https://www.ft.dk/samling/sog?q=${encodeURIComponent(s.titel)}`;
+}
+
 app.get("/api/folketinget", async (req, res) => {
   const q = (req.query.q || "dagpenge").toString();
   try {
@@ -60,7 +79,7 @@ app.get("/api/folketinget", async (req, res) => {
         `$filter=${encodeURIComponent(filter)}` +
         `&$orderby=${encodeURIComponent("opdateringsdato desc")}` +
         `&$top=8` +
-        `&$expand=${encodeURIComponent("Sagsstatus,Sagstrin/Afstemning")}`;
+        `&$expand=${encodeURIComponent("Sagsstatus,Sagstrin/Afstemning,Periode")}`;
       const json = await getJSON(url);
       return (json.value || []).map((s) => {
         const trin = s.Sagstrin || [];
@@ -86,7 +105,7 @@ app.get("/api/folketinget", async (req, res) => {
             ? { titel: senesteTrin.titel, dato: senesteTrin.dato }
             : null,
           afstemninger,
-          link: `https://www.ft.dk/samling/sog?q=${encodeURIComponent(s.titel)}`,
+          link: ftSagLink(s),
         };
       });
     });
