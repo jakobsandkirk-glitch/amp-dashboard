@@ -112,6 +112,9 @@
   .htag.AC{background:#e7ecf5;color:#2a4b8d}
   .htag.LED{background:#f3e9dc;color:#8a5a1f}
   .htag.UDEN{background:var(--line);color:var(--muted)}
+  .sortbox{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--ink);margin-bottom:12px;cursor:pointer;user-select:none}
+  .sortbox input{width:15px;height:15px;cursor:pointer;accent-color:var(--accent)}
+  table.data tr.grphdr td{font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--accent);border-top:2px solid var(--ink);border-bottom:1px solid var(--line);padding-top:12px}
 </style>
 </head>
 <body>
@@ -164,6 +167,7 @@
     </div>
     <div class="section-label" style="margin-top:28px">Alle lønmodtagerorganisationer · medlemstal</div>
     <div class="card">
+      <label class="sortbox"><input type="checkbox" id="grp-hoved" onchange="renderFagligeAlle()"> Gruppér efter hovedorganisation</label>
       <div id="faglige-alle"><span class="loading">Henter…</span></div>
     </div>
     <div class="section-label" style="margin-top:28px">Beskæftigelse pr. brancheområde</div>
@@ -296,25 +300,53 @@ function loadNogletal(){
 
 // Den lange tabel: alle enkelte lønmodtagerorganisationer (LONMED3),
 // rangordnet efter medlemstal, med årsændring. Scroller i et fast vindue.
+let fagligeAlleData=null;
 async function loadFagligeAlle(){
   const el=document.getElementById('faglige-alle');
   try{
     const d=await api('/api/faglige-alle');
     if(!d.ok||!d.organisationer||!d.organisationer.length){el.innerHTML='<span class="err">Ingen data</span>';return;}
-    const delta=(v)=>{
-      if(v==null) return '';
-      const kls=v>0?'up':v<0?'down':'flat';
-      const pil=v>0?'▲':v<0?'▼':'■';
-      return `<span class="delta ${kls}">${pil} ${v>0?'+':''}${nf.format(v)}</span>`;
-    };
-    const htag=(r)=>r.hoved?`<span class="htag ${r.hoved}">${r.hovedNavn}</span>`:'';
-    const rk=(r,n,cls='')=>`<tr class="${cls}"><td class="rank">${n||''}</td><td>${r.navn}</td><td class="hcell">${cls?'':htag(r)}</td><td>${nf.format(r.vaerdi)}</td><td>${delta(r.aendring)}</td></tr>`;
-    el.innerHTML=
-      `<div class="src">${d.antal} organisationer med aktuelt medlemstal (${d.periode}) · hovedorganisation iht. medlemskab</div>`+
-      `<div class="tablewrap"><table class="data"><thead><tr><th class="rank">#</th><th>Organisation</th><th class="hcell">Hovedorg.</th><th>Medlemmer ${d.periode}</th><th>Ændring vs. ${d.forrigePeriode}</th></tr></thead>`+
-      `<tbody>${d.organisationer.map((r,i)=>rk(r,i+1)).join('')}${rk(d.total,'','total')}</tbody></table></div>`+
-      kildeLinje(d);
+    // Tildel størrelses-rang (1 = størst), så # er ens uanset sortering.
+    d.organisationer.forEach((o,i)=>o._rank=i+1);
+    fagligeAlleData=d;
+    renderFagligeAlle();
   }catch(e){el.innerHTML='<span class="err">Fejl: '+e.message+'</span>';}
+}
+
+// Render tabellen — enten efter størrelse (standard) eller grupperet pr.
+// hovedorganisation, styret af afkrydsningsfeltet.
+function renderFagligeAlle(){
+  const el=document.getElementById('faglige-alle');
+  const d=fagligeAlleData; if(!d) return;
+  const box=document.getElementById('grp-hoved');
+  const grupper=box&&box.checked;
+  const delta=(v)=>{
+    if(v==null) return '';
+    const kls=v>0?'up':v<0?'down':'flat';
+    const pil=v>0?'▲':v<0?'▼':'■';
+    return `<span class="delta ${kls}">${pil} ${v>0?'+':''}${nf.format(v)}</span>`;
+  };
+  const htag=(r)=>r.hoved?`<span class="htag ${r.hoved}">${r.hovedNavn}</span>`:'';
+  const rk=(r,cls='')=>`<tr class="${cls}"><td class="rank">${cls?'':r._rank}</td><td>${r.navn}</td><td class="hcell">${cls?'':htag(r)}</td><td>${nf.format(r.vaerdi)}</td><td>${delta(r.aendring)}</td></tr>`;
+  let body;
+  if(grupper){
+    const orden=['FH','AC','LED','UDEN'];
+    body=orden.map(g=>{
+      const orgs=d.organisationer.filter(o=>o.hoved===g);
+      if(!orgs.length) return '';
+      const sum=orgs.reduce((a,o)=>a+(o.vaerdi||0),0);
+      const navn=orgs[0].hovedNavn;
+      return `<tr class="grphdr"><td></td><td colspan="2">${navn} · ${orgs.length} org.</td><td>${nf.format(sum)}</td><td></td></tr>`
+        +orgs.map(o=>rk(o)).join('');
+    }).join('');
+  } else {
+    body=d.organisationer.map(o=>rk(o)).join('');
+  }
+  el.innerHTML=
+    `<div class="src">${d.antal} organisationer med aktuelt medlemstal (${d.periode}) · hovedorganisation iht. medlemskab</div>`+
+    `<div class="tablewrap"><table class="data"><thead><tr><th class="rank">#</th><th>Organisation</th><th class="hcell">Hovedorg.</th><th>Medlemmer ${d.periode}</th><th>Ændring vs. ${d.forrigePeriode}</th></tr></thead>`+
+    `<tbody>${body}${rk(d.total,'total')}</tbody></table></div>`+
+    kildeLinje(d);
 }
 
 // Søjlefigur + tabel: beskæftigelse (lønmodtagere) pr. brancheområde.

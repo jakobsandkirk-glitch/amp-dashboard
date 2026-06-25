@@ -483,10 +483,9 @@ app.get("/api/faglige-org", async (_req, res) => {
 
 // Hvilken hovedorganisation hver enkelt organisation (LONMED3) hører under.
 // DST har ikke selv koblingen, så den er bygget ud fra hovedorganisationernes
-// egne medlemslister (Akademikerne + FH) + Lederne. Valideret mod LONMED2:
-// Akademikerne og Lederne summer præcist; FH vs. "uden for" afviger nogle få
-// pct., fordi DST grupperer enkelte uafhængige forbund (fx Finansforbundet)
-// anderledes end deres formelle medlemskab. Nøgler matcher rensNavn-output.
+// egne medlemslister (Akademikerne + FH (fho.dk) + Lederne). Valideret mod
+// LONMED2: ALLE fire kategorier summer PRÆCIST (FH 1.039.782, Akademikerne
+// 359.050, Lederne 114.050, uden for 469.942). Nøgler matcher rensNavn-output.
 const HOVEDORG = {
   "Fagligt Fælles Forbund": "FH", "HK/Danmark": "FH", "FOA - Fag og Arbejde": "FH",
   "2B - Bedst og Billigst - Det Faglige Hus": "UDEN", "Ingeniørforeningen i Danmark": "AC",
@@ -494,7 +493,7 @@ const HOVEDORG = {
   "Jurist- og Økonomforbundet": "AC", "Dansk Metal": "FH", "Dansk Sygeplejeråd": "FH",
   "Dansk Magisterforening": "AC", "Børne- og Ungdoms Pædagogernes Landsorganisation": "FH",
   "Danmarks Lærerforening": "FH", "Fagforeningen Danmark - Det Faglige Hus": "UDEN",
-  "Finansforbundet": "UDEN", "Socialpædagogerne": "FH", "FRIE Funktionærer": "UDEN",
+  "Finansforbundet": "FH", "Socialpædagogerne": "FH", "FRIE Funktionærer": "UDEN",
   "Lægeforeningen": "AC", "Business Danmark": "UDEN", "Dansk EL-Forbund": "FH",
   "Funktionærkartellet/Teknikersammenslutningen - Det Faglige Hus": "UDEN",
   "Teknisk Landsforbund": "FH", "Dansk Socialrådgiverforening": "FH", "Fødevareforbundet NNF": "FH",
@@ -505,10 +504,10 @@ const HOVEDORG = {
   "Konstruktørforeningen": "AC", "Ergoterapeutforeningen": "AC", "Psykologforeningen": "AC",
   "Uddannelsesforbundet": "FH", "Spring": "LED", "Pharma-Danmark": "AC", "Luftfart og Jernbane": "FH",
   "Kost og Ernæringsforbundet": "FH", "Malerforbundet i Danmark": "FH", "Danske Bioanalytikere": "AC",
-  "Arkitektforbundet": "AC", "Ejendoms- og Servicefunktionærernes Landsforbund": "UDEN",
+  "Arkitektforbundet": "AC", "Ejendoms- og Servicefunktionærernes Landsforbund": "FH",
   "Hærens Konstabel- og Korporalforening": "FH", "Dansk Musiker Forbund": "FH",
   "Farmakonomforeningen": "FH", "Dansk Journalistforbund under AC": "AC", "Forsvarsgruppen i AC": "AC",
-  "Deltidsansatte Brandfolks Faglige Organisation": "UDEN", "Fængselsforbundet i Danmark": "FH",
+  "Deltidsansatte Brandfolks Faglige Organisation": "FH", "Fængselsforbundet i Danmark": "FH",
   "Dansk Told- og Skatteforbund": "FH", "Jordemoderforening": "AC", "Præsteforeningen": "AC",
   "Radiograf Rådet i Danmark": "FH", "Tandlægeforeningen": "AC", "Dansk Skuespillerforbund": "FH",
   "Dansk Tandplejerforening": "FH", "Den Danske Dyrlægeforening": "AC", "Danske Fodterapeuter": "FH",
@@ -519,7 +518,7 @@ const HOVEDORG = {
   "Trafikforbundet": "FH", "De offentlige tandlæger": "AC", "Kort- og Landmålingsteknikernes Forening": "FH",
   "Danmarks Kordegneforening": "FH", "Fagforeningen Musiker og Musikunderviser": "AC",
   "Merkonomernes Hovedorganisation": "UDEN", "Funktionærforeningen Carlsberg": "UDEN",
-  "Dansk Formands Forening": "FH", "Organistforeningen": "FH", "Dansk Organist og Kantor Samfund": "AC",
+  "Dansk Formands Forening": "UDEN", "Organistforeningen": "FH", "Dansk Organist og Kantor Samfund": "AC",
   "Det Offentlige Beredskabspersonales Landsforbund": "FH", "Kirkekultur.nu": "FH",
   "Frederiksberg Kommunalforening": "FH", "Dansk Kirkemusiker Forening": "FH",
   "Dansk Kiropraktor Forening": "AC", "Gentofte Kommunalforening": "FH", "Mejeriingeniørforeningen": "AC",
@@ -527,7 +526,7 @@ const HOVEDORG = {
   "Hi - Organisation for ledende medarbejdere i idræt-kultur-fritid": "FH",
   "Dansk Billedkunstneres Forbund - BKF": "AC", "Cabin Union Denmark": "FH",
   "Foreningen af danske inseminører": "FH", "Foreningen af danske Sceneinstruktører": "UDEN",
-  "Foreningen af Danske Kirkegårdsledere": "FH", "Dansk Elitesportsudøveres Forening (DEF-Sport)": "UDEN",
+  "Foreningen af Danske Kirkegårdsledere": "FH", "Dansk Elitesportsudøveres Forening (DEF-Sport)": "FH",
   "Hoffunktionærforeningen": "FH",
 };
 // Visningsnavn pr. hovedorganisations-kode.
