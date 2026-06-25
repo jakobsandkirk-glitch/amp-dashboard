@@ -115,6 +115,8 @@
   .sortbox{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--ink);margin-bottom:12px;cursor:pointer;user-select:none}
   .sortbox input{width:15px;height:15px;cursor:pointer;accent-color:var(--accent)}
   table.data tr.grphdr td{font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--accent);border-top:2px solid var(--ink);border-bottom:1px solid var(--line);padding-top:12px}
+  .disclaimer{font-size:12px;color:var(--muted);background:var(--line);border-radius:6px;padding:9px 11px;margin-bottom:12px;line-height:1.45}
+  .disclaimer b{color:var(--ink)}
 </style>
 </head>
 <body>
@@ -177,6 +179,10 @@
     <div class="card">
       <label class="sortbox"><input type="checkbox" id="grp-hoved" onchange="renderFagligeAlle()"> Gruppér efter hovedorganisation</label>
       <div id="faglige-alle"><span class="loading">Henter…</span></div>
+    </div>
+    <div class="section-label" style="margin-top:28px">Arbejdsgiverorganisationer · medlemsvirksomheder</div>
+    <div class="card">
+      <div id="arbejdsgivere"><span class="loading">Henter…</span></div>
     </div>
   </section>
   <section class="tab" id="tab-politik">
@@ -297,7 +303,26 @@ function loadNogletal(){
   loadSerie('/api/faglige','faglige');
   loadFagligeOrg();
   loadFagligeAlle();
+  loadArbejdsgivere();
   loadBranche();
+}
+
+// Statisk, kildemærket tabel: arbejdsgiverorganisationernes medlemsvirksomheder
+// (ikke DST/ikke live — derfor den tydelige forbeholds-boks).
+async function loadArbejdsgivere(){
+  const el=document.getElementById('arbejdsgivere');
+  try{
+    const d=await api('/api/arbejdsgivere');
+    if(!d.ok||!d.organisationer||!d.organisationer.length){el.innerHTML='<span class="err">Ingen data</span>';return;}
+    const rows=d.organisationer.map(o=>{
+      const navn=o.kildeLink?`<a href="${o.kildeLink}" target="_blank" rel="noopener">${o.navn}</a>`:o.navn;
+      return `<tr><td>${navn}</td><td>${o.antalTekst}</td><td class="hcell">${o.rolle||''}</td></tr>`;
+    }).join('');
+    el.innerHTML=
+      `<div class="disclaimer"><b>⚠️ Bemærk:</b> ${d.note}</div>`+
+      `<table class="data"><thead><tr><th>Organisation</th><th>Medlemsvirksomheder</th><th class="hcell">Note</th></tr></thead><tbody>${rows}</tbody></table>`+
+      `<div class="kilde">Kilde: organisationernes egne sider/årsrapporter (${d.opdateret})</div>`;
+  }catch(e){el.innerHTML='<span class="err">Fejl: '+e.message+'</span>';}
 }
 
 // Den lange tabel: alle enkelte lønmodtagerorganisationer (LONMED3),

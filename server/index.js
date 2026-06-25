@@ -615,6 +615,35 @@ app.get("/api/faglige-alle", async (_req, res) => {
   }
 });
 
+// Arbejdsgiverorganisationer — medlemsVIRKSOMHEDER. Disse tal findes IKKE i
+// DST og har intet åbent API, så de er manuelt indsamlet fra organisationernes
+// egne sider/årsrapporter (2024–2025). Vises tydeligt adskilt fra live-data:
+// enheden er virksomheder (ikke personer), og tallene kan IKKE lægges sammen
+// pga. stor overlap mellem organisationerne. Opdateres manuelt her i koden.
+const DA_KILDE = "https://www.da.dk/om-da/medlemsorganisationer/";
+app.get("/api/arbejdsgivere", (_req, res) => {
+  res.json({
+    ok: true,
+    statisk: true,
+    enhed: "medlemsvirksomheder",
+    opdateret: "2024–2025",
+    note:
+      "Manuelt indsamlede tal fra organisationernes egne sider/årsrapporter — " +
+      "ikke DST og ikke live. Enheden er virksomheder (ikke personer), og tallene " +
+      "kan ikke lægges sammen pga. overlap mellem organisationerne.",
+    organisationer: [
+      { navn: "DA – Dansk Arbejdsgiverforening", antalTekst: "~23.000", rolle: "Paraply for 11 arbejdsgiverorg.", kildeLink: DA_KILDE },
+      { navn: "DI – Dansk Industri", antalTekst: "~20.000", rolle: "Medlem af DA · ~650.000 ansatte", kildeLink: "https://www.danskindustri.dk/om-di/" },
+      { navn: "Dansk Erhverv", antalTekst: "18.000", rolle: "Medlem af DA · +100 brancheforeninger", kildeLink: "https://www.danskerhverv.dk/om-dansk-erhverv/" },
+      { navn: "SMVdanmark", antalTekst: "~18.000", rolle: "Uden for DA · små/mellemstore virksomheder", kildeLink: "https://smvdanmark.dk/" },
+      { navn: "TEKNIQ Arbejdsgiverne", antalTekst: "~4.100", rolle: "Medlem af DA · el/vvs/industri", kildeLink: DA_KILDE },
+      { navn: "Sama", antalTekst: ">4.000", rolle: "Medlem af DA · 5 medlemsorg.", kildeLink: DA_KILDE },
+      { navn: "Dansk Mode & Textil", antalTekst: ">375", rolle: "Medlem af DA", kildeLink: DA_KILDE },
+      { navn: "Danske Rederier", antalTekst: ">40 rederier", rolle: "Medlem af DA", kildeLink: DA_KILDE },
+    ],
+  });
+});
+
 // Beskæftigelse fordelt på brancheområder (LBESK03 — lønmodtagere,
 // sæsonkorrigeret, månedlig). BRANCHEDB071038 i ren 10-gruppering. Vi
 // viser seneste måned + ændring ift. forrige måned og samme måned året
