@@ -106,6 +106,12 @@
   table.data td .delta.up{color:var(--accent)}
   table.data td .delta.down{color:var(--accent2)}
   table.data td .delta.flat{color:var(--muted)}
+  table.data td.hcell{text-align:left}
+  .htag{display:inline-block;font-size:10px;font-weight:700;padding:1px 8px;border-radius:10px;white-space:nowrap}
+  .htag.FH{background:#e3efe7;color:#1f6b3b}
+  .htag.AC{background:#e7ecf5;color:#2a4b8d}
+  .htag.LED{background:#f3e9dc;color:#8a5a1f}
+  .htag.UDEN{background:var(--line);color:var(--muted)}
 </style>
 </head>
 <body>
@@ -301,10 +307,11 @@ async function loadFagligeAlle(){
       const pil=v>0?'▲':v<0?'▼':'■';
       return `<span class="delta ${kls}">${pil} ${v>0?'+':''}${nf.format(v)}</span>`;
     };
-    const rk=(r,n,cls='')=>`<tr class="${cls}"><td class="rank">${n||''}</td><td>${r.navn}</td><td>${nf.format(r.vaerdi)}</td><td>${delta(r.aendring)}</td></tr>`;
+    const htag=(r)=>r.hoved?`<span class="htag ${r.hoved}">${r.hovedNavn}</span>`:'';
+    const rk=(r,n,cls='')=>`<tr class="${cls}"><td class="rank">${n||''}</td><td>${r.navn}</td><td class="hcell">${cls?'':htag(r)}</td><td>${nf.format(r.vaerdi)}</td><td>${delta(r.aendring)}</td></tr>`;
     el.innerHTML=
-      `<div class="src">${d.antal} organisationer med aktuelt medlemstal (${d.periode})</div>`+
-      `<div class="tablewrap"><table class="data"><thead><tr><th class="rank">#</th><th>Organisation</th><th>Medlemmer ${d.periode}</th><th>Ændring vs. ${d.forrigePeriode}</th></tr></thead>`+
+      `<div class="src">${d.antal} organisationer med aktuelt medlemstal (${d.periode}) · hovedorganisation iht. medlemskab</div>`+
+      `<div class="tablewrap"><table class="data"><thead><tr><th class="rank">#</th><th>Organisation</th><th class="hcell">Hovedorg.</th><th>Medlemmer ${d.periode}</th><th>Ændring vs. ${d.forrigePeriode}</th></tr></thead>`+
       `<tbody>${d.organisationer.map((r,i)=>rk(r,i+1)).join('')}${rk(d.total,'','total')}</tbody></table></div>`+
       kildeLinje(d);
   }catch(e){el.innerHTML='<span class="err">Fejl: '+e.message+'</span>';}
