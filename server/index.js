@@ -687,8 +687,9 @@ const RSS_FEEDS = [
   { medie: "DR Penge", url: "https://www.dr.dk/nyheder/service/feeds/penge" },
   { medie: "DR Politik", url: "https://www.dr.dk/nyheder/service/feeds/politik" },
   // Fagbevægelsens egen kilde + A4 Medier (arbejdsmarkeds-journalistik).
+  // A4 har ingen RSS, så vi læser deres Google News-sitemap i stedet.
   { medie: "FH", url: "https://fho.dk/feed/" },
-  { medie: "Avisen.dk (A4)", url: "https://www.avisen.dk/rss.aspx" },
+  { medie: "A4 Medier", url: "https://www.a4medier.dk/news-sitemap.xml", parse: parseNyhedsSitemap },
 ];
 
 // Hent rå tekst (RSS er XML, ikke JSON).
@@ -729,6 +730,23 @@ function parseRSS(xml, medie) {
   });
 }
 
+// Parse en Google News-sitemap (fx A4 Medier, der ikke har RSS) til samme
+// format. Hver <url> har <loc>, <news:title> og <news:publication_date>.
+function parseNyhedsSitemap(xml, medie) {
+  return [...xml.matchAll(/<url>([\s\S]*?)<\/url>/gi)]
+    .map((m) => {
+      const b = m[1];
+      return {
+        titel: pick(b, "news:title"),
+        link: pick(b, "loc"),
+        tid: pick(b, "news:publication_date"),
+        uddrag: "",
+        medie,
+      };
+    })
+    .filter((a) => a.titel && a.link);
+}
+
 app.get("/api/debat", async (req, res) => {
   const q = (req.query.q || "dagpenge").toString();
   try {
@@ -757,7 +775,7 @@ app.get("/api/debat", async (req, res) => {
     // og langsomt. Emnet filtreres bagefter i hukommelsen.
     const hentPool = async () => {
       const settled = await Promise.allSettled(
-        RSS_FEEDS.map(async (f) => parseRSS(await getText(f.url), f.medie))
+        RSS_FEEDS.map(async (f) => (f.parse || parseRSS)(await getText(f.url), f.medie))
       );
       const alle = settled.flatMap((s) => (s.status === "fulfilled" ? s.value : []));
       const set = new Map();
@@ -784,7 +802,7 @@ app.get("/api/debat", async (req, res) => {
 
     res.json({
       ok: true,
-      kilde: "Altinget · Fagbladet 3F · DR · FH · Avisen.dk/A4 (RSS)",
+      kilde: "Altinget · Fagbladet 3F · DR · FH · A4 Medier",
       kildeLink: "https://www.altinget.dk/arbejdsmarked",
       emne: q,
       note: result.traf
