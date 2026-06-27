@@ -170,18 +170,23 @@ function parseBio(xml = "") {
   };
 }
 
-// Foto + profillink pr. medlem. ft.dk's egne CV-billeder ligger bag en
-// Cloudflare-challenge og kan ikke indlejres som <img>. I stedet henter vi
-// via Wikidata, som har et "Folketinget actor ID" (P10207) der matcher
-// oda.ft.dk's aktør-id 1:1 — så vi gætter aldrig på navne. Vi trækker
-// portrættet (P18, frit Commons-billede) og ft.dk-profilsluggen (P7882, som
-// giver det officielle link www.ft.dk/medlemmer/mf/<slug>) ud.
-// Returnerer {aktørid: {foto, ftdk}}.
+// Foto, profillink OG sociale medier pr. medlem. ft.dk's biografi er ofte
+// tynd, så vi beriger via Wikidata, der matcher oda's aktør-id 1:1 (P10207).
+// Vi trækker portræt (P18), ft.dk-slug (P7882), X (P2002), Facebook (P2013),
+// Instagram (P2003), LinkedIn (P6634) og hjemmeside (P856). SAMPLE+GROUP BY
+// giver én værdi pr. felt (undgår kombinatorisk eksplosion ved flere værdier).
+// Returnerer {aktørid: {foto, ftdk, twitter, facebook, instagram, linkedin, hjemmeside}}.
 async function wikidataMedlemsdata() {
   return cached("wd:ft-medlemmer", 1440, async () => {
     const q =
-      "SELECT ?actorId ?image ?ftId WHERE { ?p wdt:P10207 ?actorId . " +
-      "OPTIONAL { ?p wdt:P18 ?image . } OPTIONAL { ?p wdt:P7882 ?ftId . } }";
+      "SELECT ?actorId (SAMPLE(?image) AS ?aImg) (SAMPLE(?ftId) AS ?aFt) " +
+      "(SAMPLE(?x) AS ?aTw) (SAMPLE(?fb) AS ?aFb) (SAMPLE(?ig) AS ?aIg) " +
+      "(SAMPLE(?li) AS ?aLi) (SAMPLE(?web) AS ?aWeb) WHERE { " +
+      "?p wdt:P10207 ?actorId . " +
+      "OPTIONAL { ?p wdt:P18 ?image } OPTIONAL { ?p wdt:P7882 ?ftId } " +
+      "OPTIONAL { ?p wdt:P2002 ?x } OPTIONAL { ?p wdt:P2013 ?fb } " +
+      "OPTIONAL { ?p wdt:P2003 ?ig } OPTIONAL { ?p wdt:P6634 ?li } " +
+      "OPTIONAL { ?p wdt:P856 ?web } } GROUP BY ?actorId";
     const url =
       "https://query.wikidata.org/sparql?format=json&query=" +
       encodeURIComponent(q);
@@ -193,18 +198,24 @@ async function wikidataMedlemsdata() {
         },
       });
       const map = {};
+      const v = (r, k) => (r[k] && r[k].value ? r[k].value : null);
       for (const r of json.results?.bindings || []) {
-        const id = r.actorId?.value;
+        const id = v(r, "actorId");
         if (!id) continue;
-        const e = map[id] || (map[id] = {});
+        const e = (map[id] = {});
         // Commons Special:FilePath skaleres med ?width=… (hotlink-venligt).
-        if (r.image?.value && !e.foto) e.foto = `${r.image.value}?width=300`;
-        if (r.ftId?.value && !e.ftdk)
-          e.ftdk = `https://www.ft.dk/medlemmer/mf/${r.ftId.value}`;
+        if (v(r, "aImg")) e.foto = `${v(r, "aImg")}?width=300`;
+        if (v(r, "aFt")) e.ftdk = `https://www.ft.dk/medlemmer/mf/${v(r, "aFt")}`;
+        // Wikidata gemmer brugernavne/ID'er — vi bygger den fulde URL.
+        if (v(r, "aTw")) e.twitter = `https://x.com/${v(r, "aTw")}`;
+        if (v(r, "aFb")) e.facebook = `https://www.facebook.com/${v(r, "aFb")}`;
+        if (v(r, "aIg")) e.instagram = `https://www.instagram.com/${v(r, "aIg")}`;
+        if (v(r, "aLi")) e.linkedin = `https://www.linkedin.com/in/${v(r, "aLi")}`;
+        if (v(r, "aWeb")) e.hjemmeside = v(r, "aWeb");
       }
       return map;
     } catch {
-      return {}; // Wikidata utilgængeligt → fald tilbage til initialer.
+      return {}; // Wikidata utilgængeligt → fald tilbage til biografi/initialer.
     }
   });
 }
@@ -250,12 +261,13 @@ async function beuMedlemmer() {
       // Officielt profillink på Folketingets hjemmeside (matchet på oda-id).
       ftdk: w.ftdk || null,
       email: bio.email,
+      // Biografiens egne links foretrækkes; Wikidata fylder hullerne ud.
       links: {
-        facebook: bio.facebook,
-        instagram: bio.instagram,
-        linkedin: bio.linkedin,
-        twitter: bio.twitter,
-        hjemmeside: bio.hjemmeside,
+        facebook: bio.facebook || w.facebook || null,
+        instagram: bio.instagram || w.instagram || null,
+        linkedin: bio.linkedin || w.linkedin || null,
+        twitter: bio.twitter || w.twitter || null,
+        hjemmeside: bio.hjemmeside || w.hjemmeside || null,
       },
     });
   }
